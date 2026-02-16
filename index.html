@@ -43,87 +43,68 @@
             <button id="btn-aggiungi">Aggiungi</button>
         </div>
 
+        <div class="filter-group" style="margin-bottom: 20px;">
+    <span>Filtra per priorità:</span>
+    <button onclick="leggiTask('Tutti')">Tutti</button>
+    <button onclick="leggiTask('Alta')" style="background: #ef4444;">Alta</button>
+    <button onclick="leggiTask('Media')" style="background: #f59e0b;">Media</button>
+    <button onclick="leggiTask('Bassa')" style="background: #10b981;">Bassa</button>
+</div>
+
         <div id="lista-task">
             <p>Caricamento dati...</p>
         </div>
     </div>
 
     <script type="module">
-import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
-import { getFirestore, collection, getDocs, addDoc } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
+// Aggiungiamo 'query' e 'where' agli import
+import { getFirestore, collection, getDocs, addDoc, query, where, orderBy } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
 
-const firebaseConfig = {
-    apiKey: "AIzaSyAbMssnXugVQcCDfHs8TIlzR85L8Hbs4_o",
-    authDomain: "test-portfolio-c1490.firebaseapp.com",
-    projectId: "test-portfolio-c1490",
-    storageBucket: "test-portfolio-c1490.firebasestorage.app",
-    messagingSenderId: "337207486263",
-    appId: "1:337207486263:web:d493445a38e104cbcf9cb2"
-};
+// ... (configurazione e inizializzazione rimangono uguali) ...
 
-const app = initializeApp(firebaseConfig);
-const db = getFirestore(app);
-
-// FUNZIONE PER LEGGERE
-async function leggiTask() {
+// Modifichiamo la funzione: ora accetta un 'filtro' (default 'Tutti')
+async function leggiTask(filtro = 'Tutti') {
     const lista = document.getElementById('lista-task');
-    lista.innerHTML = 'Caricamento...';
+    lista.innerHTML = 'Filtraggio in corso...';
+    
     try {
-        const querySnapshot = await getDocs(collection(db, 'i_miei_task'));
+        let q; // Questa sarà la nostra query
+        const collezioneRef = collection(db, 'i_miei_task');
+
+        if (filtro === 'Tutti') {
+            q = query(collezioneRef); // Prendi tutto
+        } else {
+            // Chiedi a Firebase solo i documenti dove la priorità è uguale al filtro
+            q = query(collezioneRef, where("priorita", "==", filtro));
+        }
+
+        const querySnapshot = await getDocs(q);
         lista.innerHTML = '';
+
         if (querySnapshot.empty) {
-            lista.textContent = 'Nessun task trovato.';
+            lista.innerHTML = `<p>Nessun task con priorità ${filtro}.</p>`;
             return;
         }
+
         querySnapshot.forEach(doc => {
             const data = doc.data();
             const div = document.createElement('div');
-            div.className = 'card';
-            if (data.priorita === 'Alta') div.classList.add('prio-Alta');
+            div.className = `card prio-${data.priorita}`;
             div.innerHTML = `
-                <h3>📌 ${data.attivita || 'Task'}</h3>
-                <p>Priorità: <strong>${data.priorita || 'Normale'}</strong></p>
+                <h3>📌 ${data.attivita}</h3>
+                <p>Priorità: <strong>${data.priorita}</strong></p>
             `;
-            // interazione: clic per evidenziare
-            div.addEventListener('click', () => {
-                div.classList.toggle('active');
-            });
             lista.appendChild(div);
         });
     } catch (e) {
-        console.error(e);
-        lista.textContent = 'Errore di connessione.';
+        console.error("Errore filtro:", e);
     }
 }
 
-// FUNZIONE PER SCRIVERE
-document.getElementById('btn-aggiungi')?.addEventListener('click', async () => {
-    const testo = document.getElementById('input-task').value;
-    const prio = document.getElementById('select-priorita').value;
-    
-    if(!testo) return alert("Scrivi un task!");
+// Rendiamo la funzione disponibile ai bottoni HTML
+window.leggiTask = leggiTask; 
 
-    await addDoc(collection(db, 'i_miei_task'), {
-        attivita: testo,
-        priorita: prio,
-        data: new Date()
-    });
-    
-    document.getElementById('input-task').value = '';
-    leggiTask(); // Ricarica la lista dopo l'invio
-});
-
-
-// funzione per attivare/disattivare tema scuro
-const themeBtn = document.getElementById('theme-toggle');
-themeBtn?.addEventListener('click', () => {
-    const body = document.body;
-    const current = body.getAttribute('data-theme');
-    const next = current === 'dark' ? 'light' : 'dark';
-    body.setAttribute('data-theme', next);
-    themeBtn.textContent = next === 'dark' ? '☀️ Light Mode' : '🌙 Dark Mode';
-});
-
+// Caricamento iniziale
 leggiTask();
 </script>
 </body>
