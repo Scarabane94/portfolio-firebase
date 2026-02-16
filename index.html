@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <title>Il mio Portfolio Firebase</title>
+    <style>
+    :root { --primary: #4f46e5; --bg: #f8fafc; --text: #1e293b; }
+    body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--text); padding: 40px; }
+    .container { max-width: 800px; margin: 0 auto; }
+    .header { margin-bottom: 40px; }
+    .input-group { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1); display: flex; gap: 10px; margin-bottom: 30px; }
+    input, select, button { padding: 10px; border: 1px solid #e2e8f0; border-radius: 6px; outline: none; }
+    button { background: var(--primary); color: white; border: none; cursor: pointer; transition: 0.2s; font-weight: 600; }
+    button:hover { opacity: 0.9; transform: translateY(-1px); }
+    #lista-task { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 20px; }
+    .card { background: white; padding: 20px; border-radius: 12px; border-left: 5px solid var(--primary); text-align: left; box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1); position: relative; transition: transform 0.2s, background 0.3s, color 0.3s; cursor: pointer; }
+    .card:hover { transform: translateY(-5px) scale(1.02); }
+    .card.active { background: var(--primary); color: white; }
+    .card h3 { margin: 0 0 10px 0; font-size: 1.1rem; }
+    .prio-Alta { border-left-color: #ef4444; }
+    .btn-delete { background: #fee2e2; color: #ef4444; font-size: 0.8rem; margin-top: 10px; width: 100%; }
+
+    /* theme support */
+    [data-theme="dark"] { --bg: #1e293b; --text: #f8fafc; }
+    body { transition: background 0.3s, color 0.3s; }
+</style>
+
+</head>
+<body data-theme="light">
+    <div class="container">
+        <header class="header">
+            <h1>I miei Task dal Cloud</h1>
+            <button id="theme-toggle">🌙 Dark Mode</button>
+        </header>
+
+        <div class="input-group">
+            <input type="text" id="input-task" placeholder="Scrivi un nuovo task..." />
+            <select id="select-priorita">
+                <option value="Normale">Normale</option>
+                <option value="Alta">Alta</option>
+                <option value="Bassa">Bassa</option>
+            </select>
+            <button id="btn-aggiungi">Aggiungi</button>
+        </div>
+
+        <div id="lista-task">
+            <p>Caricamento dati...</p>
+        </div>
+    </div>
+
+    <script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
+import { getFirestore, collection, getDocs, addDoc } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
+
+const firebaseConfig = {
+    apiKey: "AIzaSyAbMssnXugVQcCDfHs8TIlzR85L8Hbs4_o",
+    authDomain: "test-portfolio-c1490.firebaseapp.com",
+    projectId: "test-portfolio-c1490",
+    storageBucket: "test-portfolio-c1490.firebasestorage.app",
+    messagingSenderId: "337207486263",
+    appId: "1:337207486263:web:d493445a38e104cbcf9cb2"
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+
+// FUNZIONE PER LEGGERE
+async function leggiTask() {
+    const lista = document.getElementById('lista-task');
+    lista.innerHTML = 'Caricamento...';
+    try {
+        const querySnapshot = await getDocs(collection(db, 'i_miei_task'));
+        lista.innerHTML = '';
+        if (querySnapshot.empty) {
+            lista.textContent = 'Nessun task trovato.';
+            return;
+        }
+        querySnapshot.forEach(doc => {
+            const data = doc.data();
+            const div = document.createElement('div');
+            div.className = 'card';
+            if (data.priorita === 'Alta') div.classList.add('prio-Alta');
+            div.innerHTML = `
+                <h3>📌 ${data.attivita || 'Task'}</h3>
+                <p>Priorità: <strong>${data.priorita || 'Normale'}</strong></p>
+            `;
+            // interazione: clic per evidenziare
+            div.addEventListener('click', () => {
+                div.classList.toggle('active');
+            });
+            lista.appendChild(div);
+        });
+    } catch (e) {
+        console.error(e);
+        lista.textContent = 'Errore di connessione.';
+    }
+}
+
+// FUNZIONE PER SCRIVERE
+document.getElementById('btn-aggiungi')?.addEventListener('click', async () => {
+    const testo = document.getElementById('input-task').value;
+    const prio = document.getElementById('select-priorita').value;
+    
+    if(!testo) return alert("Scrivi un task!");
+
+    await addDoc(collection(db, 'i_miei_task'), {
+        attivita: testo,
+        priorita: prio,
+        data: new Date()
+    });
+    
+    document.getElementById('input-task').value = '';
+    leggiTask(); // Ricarica la lista dopo l'invio
+});
+
+
+// funzione per attivare/disattivare tema scuro
+const themeBtn = document.getElementById('theme-toggle');
+themeBtn?.addEventListener('click', () => {
+    const body = document.body;
+    const current = body.getAttribute('data-theme');
+    const next = current === 'dark' ? 'light' : 'dark';
+    body.setAttribute('data-theme', next);
+    themeBtn.textContent = next === 'dark' ? '☀️ Light Mode' : '🌙 Dark Mode';
+});
+
+leggiTask();
+</script>
+</body>
+</html>
